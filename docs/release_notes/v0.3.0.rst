@@ -1,0 +1,12 @@
+Version 0.3.0 (August 14, 2021)
+-------------------------------
+
+First LANTSA release `@wlq762`_ `@zccqq`_
+
+Contributors
+~~~~~~~~~~~~
+- `@wlq762`_
+- `@zccqq`_
+
+.. _`@wlq762`: https://github.com/wlq762
+.. _`@zccqq`: https://github.com/zccqq

@@ -1,0 +1,61 @@
+[tool.poetry]
+name = 'lantsa'
+version = '0.3.0'
+description = 'Landmark-based transferable subspace analysis for single-cell and spatial transcriptomics'
+authors = ['Lequn Wang <wanglequn2019@sibcb.ac.cn>']
+classifiers = [
+  'Topic :: Scientific/Engineering :: Bio-Informatics',
+  'Development Status :: 4 - Beta',
+  'Programming Language :: Python :: 3.7',
+  'Programming Language :: Python :: 3.8',
+  'Programming Language :: Python :: 3.9',
+  'Programming Language :: Python :: 3.10',
+  'Operating System :: MacOS :: MacOS X',
+  'Operating System :: Microsoft :: Windows',
+  'Operating System :: POSIX :: Linux',
+  'Intended Audience :: Science/Research',
+  'Natural Language :: English',
+]
+license = 'BSD-3-Clause'
+packages = [
+  {include = 'lantsa'},
+]
+readme = 'README.md'
+
+[tool.poetry.dependencies]
+anndata = '>=0.7.5'
+h5py = '>=2.9.0'
+leidenalg = {version = '*', optional = true}
+numba = '>=0.41.0'
+numpy = '>=1.17.0'
+pandas = '>=1.0'
+python = '>=3.7,<4.0'
+python-igraph = {version = '*', optional = true}
+scanpy = {version = '>=1.6', optional = true}
+scikit-learn = '>=0.21.2'
+scikit-misc = {version = '>=0.1.3', optional = true}
+torch = '>=1.7.0'
+tqdm = '>=4.56.0'
+
+[tool.poetry.extras]
+docs = [
+  'sphinx',
+  'scanpydoc',
+  'nbsphinx',
+  'ipython',
+  'pydata-sphinx-theme',
+  'sphinx-autodoc-typehints',
+  'sphinx_copybutton',
+]
+tutorials = [
+  'scanpy',
+  'leidenalg',
+  'python-igraph',
+  'scikit-misc'
+]
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ['poetry-core>=1.0.0']
+build-backend = 'poetry.core.masonry.api'

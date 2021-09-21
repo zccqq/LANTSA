@@ -1,24 +1,35 @@
 # -*- coding: utf-8 -*-
 
-from typing import Optional
+from typing import Callable, Optional, Union
 from anndata import AnnData
+from ._compat import Literal
 
 import torch
 import numpy as np
 
-from scipy.sparse import issparse, csr_matrix
+from scipy.sparse import issparse, spmatrix, csr_matrix
 
 from ._initialize import initialize_Z
 from ._solve import solve_P, solve_Z
 
 
+_Metric = Literal['cityblock', 'cosine', 'euclidean', 'l1', 'l2', 'manhattan',
+                  'braycurtis', 'canberra', 'chebyshev', 'correlation',
+                  'dice', 'hamming', 'jaccard', 'kulsinski', 'mahalanobis',
+                  'minkowski', 'rogerstanimoto', 'russellrao', 'seuclidean',
+                  'sokalmichener', 'sokalsneath', 'sqeuclidean', 'yule']
+_Metric_fn = Callable[[np.ndarray, np.ndarray], float]
+
+
 def subspace_analysis(
     adata: AnnData,
-    Lambda: float = 0.1,
     n_neighbors: Optional[int] = None,
+    n_pcs: Optional[int] = None,
+    metric: Union[_Metric, _Metric_fn] = 'euclidean',
+    Lambda: float = 0.1,
     n_iterations: int = 500,
-    depth: int = 1,
-    discriminant_dim: Optional[int] = None,
+    n_discriminant: Optional[int] = None,
+    Z_mask: Optional[Union[np.ndarray, spmatrix]] = None,
     use_landmarks: Optional[bool] = None,
     use_highly_variable: Optional[bool] = None,
     device: Optional[str] = None,
@@ -33,21 +44,33 @@ def subspace_analysis(
     ----------
     adata
         Annotated data matrix.
-    Lambda
-        Hyperparameter for sparsity regularization.
     n_neighbors
         Number of neighbors for constructing a :class:`~sklearn.neighbors.NearestNeighbors`
-        graph to hard constrain subspace analysis.
+        graph as hard constraints in subspace analysis.
         Defaults to the number of samples devided by 10 with a minimum number of 20.
+    n_pcs
+        Number of principal components to use for constructing a
+        :class:`~sklearn.neighbors.NearestNeighbors` graph as hard
+        constraints in subspace analysis.
+        Defaults to the number of features devided by 50 with a minimum number of 20.
+    metric
+        Distance metric to use for constructing a
+        :class:`~sklearn.neighbors.NearestNeighbors` graph as hard
+        constraints in subspace analysis.
+    Lambda
+        Hyperparameter for sparsity regularization.
     n_iterations
         Number of iterations for the optimization.
-    depth
-        How many times to loop subspace analysis.
-    discriminant_dim
-        Dimension of discriminant matrix to store for label transfer.
-        Defaults to the number of features devided by 10 with a minimum number of 50.
+    n_discriminant
+        Number of discriminant vectors to store for label transfer.
+        By default stores all discriminant vectors.
+    Z_mask
+        Customized sample-by-sample graph of shape (`adata.n_obs`, `adata.n_obs`)
+        as hard constraints in subspace analysis.
+        By default computes a :class:`~sklearn.neighbors.NearestNeighbors` graph.
     use_landmarks
-        Whether to use landmarks to constrain subspace analysis, stored in `adata.obs['is_landmarks']`.
+        Whether to use landmarks as hard constraints in subspace analysis,
+        stored in `adata.obs['is_landmarks']`.
         By default uses them if they have been selected beforehand.
     use_highly_variable
         Whether to use highly variable genes only, stored in `adata.var['highly_variable']`.
@@ -74,10 +97,10 @@ def subspace_analysis(
     See ``key_added`` parameter description for the storage path of
     representation and discriminant.
     
-    representation : :class:`~scipy.sparse.csr_matrix` (`.obsp`)
+    representation : :class:`~scipy.sparse.csr_matrix` (.obsp)
         The subspace representation of samples.
-    discriminant : :class:`~numpy.ndarray` (`.varm`)
-        The discriminant matrix for label transfer.
+    discriminant : :class:`~numpy.ndarray` (.uns[``key_added``])
+        The discriminant vectors for label transfer.
     '''
     
     adata = adata.copy() if copy else adata
@@ -112,36 +135,32 @@ def subspace_analysis(
         adata[:, adata.var['highly_variable']] if use_highly_variable else adata
     )
     
-    if discriminant_dim is None:
-        discriminant_dim = min(max(adata_use.n_vars // 10, 50), adata_use.n_vars)
+    if n_discriminant is None:
+        n_discriminant = adata_use.n_vars
     
     
     X = adata_use.X.toarray().T if issparse(adata_use.X) else adata_use.X.T
-    Zi = initialize_Z(X, n_neighbors, landmarks, random_state)
+    if Z_mask is None:
+        Z_mask, n_pcs = initialize_Z(X, n_neighbors, n_pcs, landmarks, random_state)
+    else:
+        if len(Z_mask.shape) != 2 or Z_mask.shape[0] != X.shape[1] or Z_mask.shape[1] != X.shape[1]:
+            raise ValueError(
+                'The shape of Z_mask needs to be (adata.n_obs, adata.n_obs) '
+                f'({adata.n_obs}, {adata.n_obs}), but given {Z_mask.shape}.'
+            )
+        Z_mask = Z_mask.toarray() if issparse(Z_mask) else Z_mask
+        Z_mask[Z_mask != 0] = 1
+        n_pcs = None
     
     X = torch.Tensor(X).type(torch.float32).to(device)
-    Zi = torch.Tensor(Zi).type(torch.float32).to(device)
+    Z_mask = torch.Tensor(Z_mask).type(torch.float32).to(device)
     
-    obj_final = float('inf')
     P = torch.eye(adata_use.n_vars).to(device)
     
-    for dep in range(depth):
-        
-        # fixing P, solve Z
-        X_input = torch.matmul(P.T, X)
-        Z, E = solve_Z(X_input, Lambda, Zi, n_iterations, device)  
-        
-        # fixing Z, solve P
-        P = solve_P(X, Z, P)
-        
-        # check convergence
-        M = torch.matmul(P.T, X - torch.matmul(X, Z))
-        obj = torch.sum(torch.norm(M, 2, dim=0))
-        
-        if torch.abs(obj - obj_final) / obj < 0.001:
-            break
-        else:
-            obj_final = obj
+    X_input = torch.matmul(P.T, X)
+    Z, E = solve_Z(X_input, Lambda, Z_mask, n_iterations, device)  
+    
+    P = solve_P(X, Z, P)
     
     Z = Z.cpu().numpy()
     P = P.cpu().numpy()
@@ -154,11 +173,9 @@ def subspace_analysis(
         key_added = 'subspace_analysis'
         conns_key = 'representation'
         dists_key = 'representation'
-        discriminant_key = 'discriminant'
     else:
         conns_key = key_added + '_representation'
         dists_key = key_added + '_representation'
-        discriminant_key = key_added + '_discriminant'
     
     adata.uns[key_added] = {}
     
@@ -166,26 +183,22 @@ def subspace_analysis(
     
     subspace_dict['connectivities_key'] = conns_key
     subspace_dict['distances_key'] = dists_key
-    subspace_dict['discriminant_key'] = discriminant_key
+    subspace_dict['discriminant'] = P[:, :n_discriminant]
+    subspace_dict['var_names_use'] = adata_use.var_names.to_numpy()
     
     subspace_dict['params'] = {}
     subspace_dict['params']['n_neighbors'] = np.count_nonzero(Z) // Z.shape[0]
+    subspace_dict['params']['n_pcs'] = n_pcs
+    subspace_dict['params']['metric'] = str(metric)
     subspace_dict['params']['Lambda'] = Lambda
     subspace_dict['params']['n_iterations'] = n_iterations
-    subspace_dict['params']['depth'] = depth
-    subspace_dict['params']['discriminant_dim'] = discriminant_dim
+    subspace_dict['params']['n_discriminant'] = n_discriminant
     subspace_dict['params']['use_landmarks'] = use_landmarks
     subspace_dict['params']['use_highly_variable'] = use_highly_variable
     subspace_dict['params']['random_state'] = random_state
     subspace_dict['params']['method'] = 'umap'
     
     adata.obsp[conns_key] = csr_matrix(Z)
-    
-    if use_highly_variable:
-        adata.varm[discriminant_key] = np.zeros(shape=(adata.n_vars, discriminant_dim))
-        adata.varm[discriminant_key][adata.var['highly_variable']] = P[:, :discriminant_dim]
-    else:
-        adata.varm[discriminant_key] = P[:, :discriminant_dim]
     
     return adata if copy else None
 

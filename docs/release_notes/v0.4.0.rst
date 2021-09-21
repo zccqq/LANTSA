@@ -1,0 +1,37 @@
+Version 0.4.0 (September 21, 2021)
+----------------------------------
+
+Features
+~~~~~~~~
+
+- Update :func:`~lantsa.subspace_analysis`
+   
+   - Remove parameter ``depth``
+   
+   - Add new parameter ``n_pcs``, ``metric``, ``Z_mask``
+   
+   - Change the parameter name ``discriminant_dim`` to ``n_discriminant``
+   
+   - Change the default setting of ``n_discriminant`` to store all discriminant vectors
+   
+   - Change the default storage place of discriminant vectors from `.varm['discriminant']` to `.uns[key_added]['discriminant']`
+   
+- Update :func:`~lantsa.transfer_labels`
+   
+   - Add new parameter ``metric``
+   
+   - Change the parameter name ``discriminant_dim`` to ``n_discriminant``
+   
+   - Change the default setting of ``metric`` from ``'euclidean'`` to ``'cosine'``
+   
+   - Change the storage place of transfer probability from `.uns['transfer_labels']['probability']` to `.obsm['transfer_proba']`
+   
+- Update `Literal` typing import to support Python 3.7
+
+Contributors
+~~~~~~~~~~~~
+- `@wlq762`_
+- `@zccqq`_
+
+.. _`@wlq762`: https://github.com/wlq762
+.. _`@zccqq`: https://github.com/zccqq

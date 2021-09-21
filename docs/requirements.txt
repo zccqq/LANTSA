@@ -1,7 +1,7 @@
 lantsa
 ipython
-pydata_sphinx_theme
-sphinx_autodoc_typehints
 nbsphinx
-sphinx_copybutton
+pydata_sphinx_theme
 scanpydoc
+sphinx_autodoc_typehints
+sphinx_copybutton

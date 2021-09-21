@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from typing import Literal, Optional
+from typing import Optional
 from anndata import AnnData
+from ._compat import Literal
 
 import numpy as np
 import pandas as pd
@@ -67,7 +68,7 @@ def select_learning_samples(
         raise ValueError('method needs to be \'MiniBatchKMeans\' or \'Random\'')
     
     if n_learning > adata.n_obs:
-        raise ValueError(f"n_learning {n_learning} needs to be less than n_obs {adata.shape[0]}")
+        raise ValueError(f'Expected n_learning <= n_obs, but n_learning = {n_learning}, n_obs = {adata.shape[0]}')
     
     if use_highly_variable is True and 'highly_variable' not in adata.var.keys():
         raise ValueError(

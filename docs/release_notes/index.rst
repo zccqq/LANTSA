@@ -15,3 +15,4 @@ Version 0.4
    :maxdepth: 1
 
    v0.4.0
+   v0.4.2

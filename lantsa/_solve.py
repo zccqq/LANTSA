@@ -13,7 +13,7 @@ def solve_l1l2(W, Lambda):
     return E * W
 
 
-def solve_Z(X, Lambda, Zi, n_iterations, device):
+def solve_Z(X, landmarks, Lambda, Z_mask, n_iterations, device):
     
     mu = 1e-6
     max_mu = 1e30
@@ -22,6 +22,8 @@ def solve_Z(X, Lambda, Zi, n_iterations, device):
     tol2 = 1e-5
     
     m, n = X.shape
+    l = landmarks.shape[0]
+    Xl = X[:,landmarks]
     n = torch.tensor(n).to(device)
     normfX = torch.norm(X, 'fro')
     norm2X = torch.norm(X, 2)
@@ -29,13 +31,13 @@ def solve_Z(X, Lambda, Zi, n_iterations, device):
     tensor0 = torch.tensor(0).to(device)
     
     # intialize
-    J = torch.zeros(n, n).to(device)
-    Z = torch.zeros(n, n).to(device)
-    E = torch.zeros(m, n).to(device)
+    J = torch.zeros(n, l).to(device)
+    Z = torch.zeros(n, l).to(device)
+    E = torch.zeros(m, l).to(device)
     
-    Y1 = torch.zeros(m, n).to(device)
-    Y2 = torch.zeros(1, n).to(device)
-    Y3 = torch.zeros(n, n).to(device)
+    Y1 = torch.zeros(m, l).to(device)
+    Y2 = torch.zeros(1, l).to(device)
+    Y3 = torch.zeros(n, l).to(device)
     
     pbar = trange(n_iterations)
     
@@ -47,14 +49,14 @@ def solve_Z(X, Lambda, Zi, n_iterations, device):
         
         J = torch.maximum(temp - 1 / mu, tensor0)
         
-        temp = X - torch.matmul(X, Z) + Y1 / mu
+        temp = Xl - torch.matmul(X, Z) + Y1 / mu
         E = solve_l1l2(temp, Lambda / mu)
         
-        H = - torch.matmul(X.T, (X - torch.matmul(X, Z) - E + Y1 / mu)) - (1 - torch.sum(Z, axis=0, keepdims=True) + Y2 / mu) + (Z - J + Y3 / mu)
+        H = - torch.matmul(X.T, (Xl - torch.matmul(X, Z) - E + Y1 / mu)) - (1 - torch.sum(Z, axis=0, keepdims=True) + Y2 / mu) + (Z - J + Y3 / mu)
         M = Z - H / eta
-        Z = Zi * M
+        Z = Z_mask * M
         
-        xmaz = X - torch.matmul(X, Z)
+        xmaz = Xl - torch.matmul(X, Z)
         leq1 = xmaz - E
         leq2 = 1 - torch.sum(Z, axis=0, keepdims=True)
         leq3 = Z - J
@@ -77,12 +79,13 @@ def solve_Z(X, Lambda, Zi, n_iterations, device):
     return Z, E
 
 
-def solve_P(X, Z, P):
+def solve_P(X, landmarks, Z):
     
     eps = 1e-14
-    temp = torch.matmul(P.T, X - torch.matmul(X, Z))
+    Xl = X[:,landmarks]
+    temp = X - torch.matmul(Xl, Z.T)
     D = torch.diag(0.5 / torch.norm(temp, 2, dim=0) + eps)
-    S = torch.matmul(torch.matmul(X - torch.matmul(X, Z), D), (X - torch.matmul(X, Z)).T)
+    S = torch.matmul(torch.matmul(X - torch.matmul(Xl, Z.T), D), (X - torch.matmul(Xl, Z.T)).T)
     S = (S + S.T) / 2
     DS, Pall = torch.eig(S, eigenvectors=True)
     Pu = Pall[:, DS[:, 0] > 10^-3]

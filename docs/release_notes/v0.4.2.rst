@@ -1,0 +1,17 @@
+Version 0.4.2 (December 26, 2021)
+---------------------------------
+
+Features
+~~~~~~~~
+
+- Update :func:`~lantsa.subspace_analysis`
+   
+   - update the algorithm for subspace analysis to improve time efficiency when using landmarks
+
+Contributors
+~~~~~~~~~~~~
+- `@wlq762`_
+- `@zccqq`_
+
+.. _`@wlq762`: https://github.com/wlq762
+.. _`@zccqq`: https://github.com/zccqq

@@ -6,7 +6,7 @@ from sklearn.decomposition import PCA
 from sklearn.neighbors import NearestNeighbors
 
 
-def initialize_Z(X, n_neighbors, n_pcs, landmarks, random_state):
+def initialize_Z(X, landmarks, n_neighbors, n_pcs, random_state):
     
     m, n = X.shape
     if n_pcs is None:
@@ -17,9 +17,8 @@ def initialize_Z(X, n_neighbors, n_pcs, landmarks, random_state):
         n_pcs = None
         X_new = X.T
     nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric='euclidean').fit(X_new[landmarks, :])
-    Zi = np.zeros((n, n))
-    Zi[:, landmarks] = nbrs.kneighbors_graph(X_new).toarray()
-    np.fill_diagonal(Zi, 0)
+    Zi = nbrs.kneighbors_graph(X_new).toarray()
+    Zi[landmarks, np.arange(landmarks.shape[0])] = 0
     
     return Zi, n_pcs
 

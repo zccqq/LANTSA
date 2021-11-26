@@ -140,10 +140,11 @@ def subspace_analysis(
     
     
     X = adata_use.X.toarray().T if issparse(adata_use.X) else adata_use.X.T
+    m, n = X.shape
     if Z_mask is None:
-        Z_mask, n_pcs = initialize_Z(X, n_neighbors, n_pcs, landmarks, random_state)
+        Z_mask, n_pcs = initialize_Z(X, landmarks, n_neighbors, n_pcs, random_state)
     else:
-        if len(Z_mask.shape) != 2 or Z_mask.shape[0] != X.shape[1] or Z_mask.shape[1] != X.shape[1]:
+        if len(Z_mask.shape) != 2 or Z_mask.shape[0] != X.shape[1] or Z_mask.shape[1] != landmarks.shape[0]:
             raise ValueError(
                 'The shape of Z_mask needs to be (adata.n_obs, adata.n_obs) '
                 f'({adata.n_obs}, {adata.n_obs}), but given {Z_mask.shape}.'
@@ -155,12 +156,9 @@ def subspace_analysis(
     X = torch.Tensor(X).type(torch.float32).to(device)
     Z_mask = torch.Tensor(Z_mask).type(torch.float32).to(device)
     
-    P = torch.eye(adata_use.n_vars).to(device)
+    Z, E = solve_Z(X, landmarks, Lambda, Z_mask, n_iterations, device)  
     
-    X_input = torch.matmul(P.T, X)
-    Z, E = solve_Z(X_input, Lambda, Z_mask, n_iterations, device)  
-    
-    P = solve_P(X, Z, P)
+    P = solve_P(X, landmarks, Z)
     
     Z = Z.cpu().numpy()
     P = P.cpu().numpy()
@@ -198,7 +196,9 @@ def subspace_analysis(
     subspace_dict['params']['random_state'] = random_state
     subspace_dict['params']['method'] = 'umap'
     
-    adata.obsp[conns_key] = csr_matrix(Z)
+    row_idx = np.repeat(np.arange(n), landmarks.shape[0])
+    col_idx = np.repeat(landmarks[None,:], n, axis=0).reshape(-1)
+    adata.obsp[conns_key] = csr_matrix((Z.reshape(-1), (row_idx, col_idx)), shape=(n, n))
     
     return adata if copy else None
 

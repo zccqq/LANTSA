@@ -1,6 +1,6 @@
 [tool.poetry]
 name = 'lantsa'
-version = '0.4.0'
+version = '0.4.2'
 description = 'Landmark-based transferable subspace analysis for single-cell and spatial transcriptomics'
 authors = ['Lequn Wang <wanglequn2019@sibcb.ac.cn>']
 classifiers = [

@@ -1,4 +1,4 @@
-Version 0.4.2 (December 26, 2021)
+Version 0.4.3 (July 11, 2022)
 ---------------------------------
 
 Features

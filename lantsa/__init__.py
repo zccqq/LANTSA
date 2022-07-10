@@ -4,7 +4,7 @@
 LANdmark-based Transferable Subspace Analysis
 '''
 
-__version__ = '0.4.0'
+__version__ = '0.4.3'
 
 
 from ._select_learning_samples import select_learning_samples

@@ -22,7 +22,7 @@ import lantsa
 # -- Project information -----------------------------------------------------
 
 project = 'LANTSA'
-copyright = '2021, Lequn Wang'
+copyright = '2022, Lequn Wang'
 author = 'Lequn Wang'
 
 # The version info for the project you're documenting, acts as replacement for
